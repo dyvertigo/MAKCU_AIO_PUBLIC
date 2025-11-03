@@ -107,7 +107,9 @@ class GUI:
 
         # Device select dropdown
         self.selected_device_var = tk.StringVar()
-        self.device_dropdown = tk.OptionMenu(self.root, self.selected_device_var, *[d['name'] for d in self.device_manager.devices])
+        device_names = [d['name'] for d in self.device_manager.devices]
+        default_value = device_names[0] if device_names else "No Devices"
+        self.device_dropdown = tk.OptionMenu(self.root, self.selected_device_var, default_value, *device_names)
         self.device_dropdown.grid(row=1, column=2, padx=5, pady=5, sticky="e")
 
         def connect_selected_device():
