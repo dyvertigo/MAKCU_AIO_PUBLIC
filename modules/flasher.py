@@ -7,6 +7,33 @@ import sys
 from modules.utils import get_download_path, get_icon_path
 
 class Flasher:
+    def flash_device_profile(self, device_profile):
+        """
+        Flash a device based on the device profile (firmware info, flash method, etc).
+        """
+        fw = device_profile.get('firmware', {})
+        bin_url = fw.get('url')
+        bin_version = fw.get('version')
+        bin_path = get_download_path(f"{device_profile['name']}_{bin_version}.bin")
+        flash_method = fw.get('flash_method', 'esptool')
+        # Download firmware if needed
+        if not os.path.exists(bin_path):
+            try:
+                self.logger.terminal_print(f"Downloading firmware from {bin_url}...")
+                response = requests.get(bin_url, stream=True, timeout=10)
+                response.raise_for_status()
+                with open(bin_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        f.write(chunk)
+                self.logger.terminal_print(f"Firmware downloaded: {bin_path}")
+            except Exception as e:
+                self.logger.terminal_print(f"Download failed: {e}")
+                return
+        # Flash with appropriate method
+        if flash_method == 'esptool':
+            self.flash_firmware(bin_path)
+        else:
+            self.logger.terminal_print(f"Custom flash method '{flash_method}' not implemented.")
     """
     Handles flashing firmware BIN files using pre-downloaded files when available.
     Falls back to online download if local files are missing.

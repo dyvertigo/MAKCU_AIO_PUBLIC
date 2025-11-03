@@ -1,0 +1,23 @@
+{
+  "devices": [
+    {
+      "type": "mouse",
+      "name": "MAKCU Default Mouse",
+      "vid": "1A86",
+      "pid": "55D3",
+      "features": ["basic"],
+      "serial_protocol": "standard",
+      "firmware": {
+        "version": "1.0",
+        "url": "https://example.com/firmware.bin",
+        "flash_method": "esptool",
+        "changelog": ["Initial release"]
+      },
+      "protocol_info": {
+        "baudrate": 115200,
+        "handshake": "none",
+        "command_set": ["move", "set_dpi"]
+      }
+    }
+  ]
+}

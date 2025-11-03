@@ -23,7 +23,8 @@ jobs:
         env:
           GITEE_USERNAME: ${{ secrets.GITEE_USERNAME }}
           GITEE_PAT: ${{ secrets.GITEE_PAT }}
+          GITEE_REPO: ${{ secrets.GITEE_REPO }}  # Format: username/repo
         run: |
-          git remote add gitee https://${GITEE_USERNAME}:${GITEE_PAT}@gitee.com/terrafirma/MAKCU_AIO_PUBLIC.git
+          git remote add gitee https://${GITEE_USERNAME}:${GITEE_PAT}@gitee.com/${GITEE_REPO}.git
           git push gitee main --force
           git push gitee --tags --force

@@ -5,6 +5,20 @@ import time
 import struct
 
 class SerialHandler:
+    def connect_device_profile(self, device_profile):
+        """
+        Connect to a device based on the device profile (baudrate, handshake, etc).
+        """
+        vid = device_profile['vid']
+        pid = device_profile['pid']
+        proto = device_profile.get('protocol_info', {})
+        baudrate = proto.get('baudrate', 115200)
+        com_port = self.find_com_port(vid, pid)
+        if com_port:
+            self.logger.terminal_print(f"Connecting to {device_profile['name']} on {com_port} (baudrate: {baudrate})")
+            self.auto_connect(com_port, device_profile.get('mode', 'Normal'), baudrate=baudrate)
+        else:
+            self.logger.terminal_print(f"Device {device_profile['name']} not found on USB.")
     KNOWN_DEVICES = [
         {"vid": "0403", "pid": "6001", "mode": "Normal"},
         {"vid": "1A86", "pid": "55D3", "mode": "Normal"},

@@ -18,7 +18,13 @@ class Updater:
     Firmware details are provided via ConfigManager's ``firmware`` entries,
     each containing ``name``, ``version``, ``changelog``, ``primary_url``,
     and ``fallback_url`` for both ``left`` and ``right`` sides.
+    
+    Configure these URLs to point to your update server:
+    
+    OPTION 1: Use your own firmware repository (requires setup)
+    OPTION 2: Use original MAKCU servers (requires permission)
     """
+    # Currently using original MAKCU servers (with permission)
     PRIMARY_UPDATE_BASE_URL = "https://github.com/terrafirma2021/MAKCM_v2_files/raw/refs/heads/main/MAKCU.exe"
     FALLBACK_UPDATE_BASE_URL = "https://gitee.com/terrafirma/MAKCM_v2_files/raw/main/MAKCU.exe"
     def __init__(self, logger, config_manager, flasher=None):

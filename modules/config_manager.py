@@ -31,7 +31,16 @@ class ConfigManager:
             "left":  { "version": "3.6", "name": "V3.6_LEFT",  "primary_url": "...", "fallback_url":"..." },
             "right": { "version": "3.6", "name": "V3.6_RIGHT", "primary_url": "...", "fallback_url":"..." }
         }
+    
+    Configure these URLs to point to your config server:
+    
+    OPTION 1 (Recommended): Use your own firmware repository
+    Replace with: https://raw.githubusercontent.com/dyvertigo/MAKCU_FILES/main/config.json
+    
+    OPTION 2: Use original MAKCU servers (requires permission)
+    Use: https://raw.githubusercontent.com/terrafirma2021/MAKCM_v2_files/main/config.json
     """
+    # Currently using original MAKCU servers (with permission)
     PRIMARY_CONFIG_URL = "https://raw.githubusercontent.com/terrafirma2021/MAKCM_v2_files/main/config.json"
     FALLBACK_CONFIG_URL = "https://gitee.com/terrafirma/MAKCM_v2_files/raw/main/config.json"
     LOCAL_CONFIG_PATH = os.path.join(get_main_folder(), 'config.json')

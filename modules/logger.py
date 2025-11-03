@@ -6,7 +6,6 @@ import queue
 
 class Logger:
     def __init__(self, text_widget, root, log_file_path=None):
-        print("Initializing Logger with log_file_path:", log_file_path)  # Debugging statement
         """
         Initializes the Logger.
 
@@ -20,7 +19,8 @@ class Logger:
         self.running = True
         self.max_lines = 1000  # Maximum lines to keep in the textbox
         self.update_scheduled = False  # Flag to prevent multiple scheduled updates
-        self.text_widget.configure(state='disabled')  # Start as read-only
+        if self.text_widget:
+            self.text_widget.configure(state='disabled')  # Start as read-only
         self.line_count = 0  # Current number of lines in the textbox
 
         # Optional: Initialize log file
@@ -59,18 +59,22 @@ class Logger:
         try:
             while not self.queue.empty():
                 message = self.queue.get_nowait()
-                self.text_widget.configure(state='normal')
-                self.text_widget.insert(tk.END, message + '\n')
-                self.text_widget.configure(state='disabled')
-                self.text_widget.see(tk.END)  # Auto-scroll to the end
-                self.line_count += 1
-
-                # Limit the number of lines to prevent slowdown
-                if self.line_count > self.max_lines:
+                if self.text_widget:
                     self.text_widget.configure(state='normal')
-                    self.text_widget.delete('1.0', '2.0')  # Delete the first line
+                    self.text_widget.insert(tk.END, message + '\n')
                     self.text_widget.configure(state='disabled')
-                    self.line_count -= 1
+                    self.text_widget.see(tk.END)  # Auto-scroll to the end
+                    self.line_count += 1
+
+                    # Limit the number of lines to prevent slowdown
+                    if self.line_count > self.max_lines:
+                        self.text_widget.configure(state='normal')
+                        self.text_widget.delete('1.0', '2.0')  # Delete the first line
+                        self.text_widget.configure(state='disabled')
+                        self.line_count -= 1
+                else:
+                    # If no text widget, just print to console
+                    print(message)
         except Exception as e:
             print(f"Logger update error: {e}")
         finally:

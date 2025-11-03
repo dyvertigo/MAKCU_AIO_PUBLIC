@@ -1,3 +1,43 @@
+# Build directories
 /build/
 /dist/
 /manual_flashing/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Runtime files
+log.txt
+*.log
+downloads/
+community_cache.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.bak
+*.backup
+
+# Database files (contain user data)
+device_db.json

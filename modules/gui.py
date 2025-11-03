@@ -17,10 +17,11 @@ from .logger import Logger
 from .serial_handler import SerialHandler
 from .flasher import Flasher
 from .updater import Updater
-from .config_manager import ConfigManager  # New import
+from .config_manager import ConfigManager
 from .utils import get_icon_path, get_main_folder
 from .usb_name_changer import USBNameChanger, USBNameChangerFTDI
 from tkinter import messagebox
+from .device_manager import DeviceManager
 
 
 class GUI:
@@ -38,6 +39,7 @@ class GUI:
         self.root.wm_attributes("-topmost", True)
         self.task_queue = queue.Queue()
         self.process_queue()
+        self.device_manager = DeviceManager()
 
         # Internal state
         self.is_connected = False
@@ -102,11 +104,237 @@ class GUI:
         self.create_icons()               # Row 3
         self.create_text_input()          # Row 4
 
+
+        # Device select dropdown
+        self.selected_device_var = tk.StringVar()
+        self.device_dropdown = tk.OptionMenu(self.root, self.selected_device_var, *[d['name'] for d in self.device_manager.devices])
+        self.device_dropdown.grid(row=1, column=2, padx=5, pady=5, sticky="e")
+
+        def connect_selected_device():
+            name = self.selected_device_var.get()
+            profile = next((d for d in self.device_manager.devices if d['name'] == name), None)
+            if profile:
+                self.serial_handler.connect_device_profile(profile)
+                self.logger.terminal_print(f"Connected to {name}")
+            else:
+                self.logger.terminal_print("Device profile not found.")
+
+        def flash_selected_device():
+            name = self.selected_device_var.get()
+            profile = next((d for d in self.device_manager.devices if d['name'] == name), None)
+            if profile:
+                self.flasher.flash_device_profile(profile)
+            else:
+                self.logger.terminal_print("Device profile not found.")
+
+        connect_btn = tk.Button(self.root, text="Connect device", command=connect_selected_device)
+        connect_btn.grid(row=2, column=2, padx=5, pady=5, sticky="e")
+        flash_btn = tk.Button(self.root, text="Flash firmware", command=flash_selected_device)
+        flash_btn.grid(row=3, column=2, padx=5, pady=5, sticky="e")
+
         self.make_window_draggable()
 
         # Hide buttons initially
         self.control_button.grid_remove()
         self.makcu_button.grid_remove()
+
+        # Device Manager tab
+        self.create_device_manager_tab()
+    def create_device_manager_tab(self):
+        def open_device_manager():
+            win = tk.Toplevel(self.root)
+            win.title("Device Manager")
+            win.geometry("700x600")
+            frame = tk.Frame(win)
+            frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+            # Known devices
+            tk.Label(frame, text="Known devices:", font=("Helvetica", 12, "bold")).pack(anchor="w")
+            known = self.device_manager.find_connected_devices()
+            for dev in known:
+                tk.Label(frame, text=f"{dev['name']} ({dev['port']})", fg="green").pack(anchor="w")
+
+            # Unknown devices
+            tk.Label(frame, text="\nUnknown devices:", font=("Helvetica", 12, "bold")).pack(anchor="w")
+            unknown = self.device_manager.detect_unknown_devices()
+            
+            # Store unknown devices for easy access
+            unknown_devices_list = []
+            for dev in unknown:
+                dev_label = tk.Label(frame, text=f"VID: {dev['vid']} PID: {dev['pid']} Port: {dev['port']} {dev['description']}", fg="red")
+                dev_label.pack(anchor="w")
+                unknown_devices_list.append(dev)
+
+            # Add device form
+            tk.Label(frame, text="\nAdd new device:", font=("Helvetica", 12, "bold")).pack(anchor="w")
+            form_frame = tk.Frame(frame)
+            form_frame.pack(anchor="w")
+            tk.Label(form_frame, text="Name:").grid(row=0, column=0)
+            name_entry = tk.Entry(form_frame)
+            name_entry.grid(row=0, column=1)
+            
+            # VID field with copy button
+            tk.Label(form_frame, text="VID:").grid(row=1, column=0)
+            vid_entry = tk.Entry(form_frame)
+            vid_entry.grid(row=1, column=1)
+            
+            # PID field with copy button
+            tk.Label(form_frame, text="PID:").grid(row=2, column=0)
+            pid_entry = tk.Entry(form_frame)
+            pid_entry.grid(row=2, column=1)
+            
+            # Helper: Copy VID/PID from unknown device
+            def copy_from_unknown():
+                if unknown_devices_list:
+                    # Create selection window
+                    sel_win = tk.Toplevel(win)
+                    sel_win.title("Select Device")
+                    sel_win.geometry("500x300")
+                    tk.Label(sel_win, text="Select device to copy VID/PID:", font=("Helvetica", 10, "bold")).pack(pady=5)
+                    
+                    listbox = tk.Listbox(sel_win, font=("Courier", 9))
+                    listbox.pack(fill="both", expand=True, padx=10, pady=5)
+                    
+                    for dev in unknown_devices_list:
+                        listbox.insert(tk.END, f"VID: {dev['vid']} PID: {dev['pid']} - {dev['description']}")
+                    
+                    def select_device():
+                        selection = listbox.curselection()
+                        if selection:
+                            idx = selection[0]
+                            selected_dev = unknown_devices_list[idx]
+                            vid_entry.delete(0, tk.END)
+                            vid_entry.insert(0, selected_dev['vid'])
+                            pid_entry.delete(0, tk.END)
+                            pid_entry.insert(0, selected_dev['pid'])
+                            if selected_dev['description']:
+                                name_entry.delete(0, tk.END)
+                                name_entry.insert(0, selected_dev['description'])
+                            sel_win.destroy()
+                    
+                    tk.Button(sel_win, text="Copy to Form", command=select_device).pack(pady=5)
+                else:
+                    feedback_label.config(text="No unknown devices found. Plug in your device.", fg="orange")
+            
+            copy_btn = tk.Button(form_frame, text="📋 Copy from Unknown Devices", command=copy_from_unknown, bg="#4CAF50", fg="white")
+            copy_btn.grid(row=1, column=2, rowspan=2, padx=5, sticky="ns")
+            
+            tk.Label(form_frame, text="Features (comma separated):").grid(row=3, column=0)
+            features_entry = tk.Entry(form_frame)
+            features_entry.grid(row=3, column=1)
+            tk.Label(form_frame, text="Protocol:").grid(row=4, column=0)
+            protocol_entry = tk.Entry(form_frame)
+            protocol_entry.grid(row=4, column=1)
+
+            # Firmware info
+            tk.Label(form_frame, text="Firmware version:").grid(row=5, column=0)
+            fw_version_entry = tk.Entry(form_frame)
+            fw_version_entry.grid(row=5, column=1)
+            tk.Label(form_frame, text="Firmware URL:").grid(row=6, column=0)
+            fw_url_entry = tk.Entry(form_frame)
+            fw_url_entry.grid(row=6, column=1)
+            tk.Label(form_frame, text="Flash method:").grid(row=7, column=0)
+            flash_method_entry = tk.Entry(form_frame)
+            flash_method_entry.grid(row=7, column=1)
+            tk.Label(form_frame, text="Firmware changelog:").grid(row=8, column=0)
+            fw_changelog_entry = tk.Entry(form_frame)
+            fw_changelog_entry.grid(row=8, column=1)
+
+            # Protocol info
+            tk.Label(form_frame, text="Baudrate:").grid(row=9, column=0)
+            baudrate_entry = tk.Entry(form_frame)
+            baudrate_entry.grid(row=9, column=1)
+            tk.Label(form_frame, text="Handshake:").grid(row=10, column=0)
+            handshake_entry = tk.Entry(form_frame)
+            handshake_entry.grid(row=10, column=1)
+            tk.Label(form_frame, text="Command set (komma gescheiden):").grid(row=11, column=0)
+            commandset_entry = tk.Entry(form_frame)
+            commandset_entry.grid(row=11, column=1)
+
+            def auto_fetch():
+                vid = vid_entry.get().strip().upper()
+                pid = pid_entry.get().strip().upper()
+                if not vid or not pid:
+                    feedback_label.config(text="Please enter VID and PID first.", fg="red")
+                    return
+                
+                # Try to find device in USB ports to get description
+                import serial.tools.list_ports
+                device_found = False
+                for port in serial.tools.list_ports.comports():
+                    if str(port.vid).upper() == vid and str(port.pid).upper() == pid:
+                        device_found = True
+                        # Auto-fill name from USB description if available
+                        if port.description and not name_entry.get():
+                            name_entry.delete(0, tk.END)
+                            name_entry.insert(0, port.description)
+                        feedback_label.config(text=f"Device found on {port.device}. Please fill remaining fields.", fg="green")
+                        break
+                
+                if not device_found:
+                    feedback_label.config(text="Device not found on USB. Fill fields manually.", fg="orange")
+
+
+            feedback_label = tk.Label(frame, text="", fg="red")
+            feedback_label.pack(anchor="w")
+
+            def add_device():
+                name = name_entry.get().strip()
+                vid = vid_entry.get().strip().upper()
+                pid = pid_entry.get().strip().upper()
+                features = [f.strip() for f in features_entry.get().split(",") if f.strip()]
+                protocol = protocol_entry.get().strip() or "standard"
+                fw_version = fw_version_entry.get().strip()
+                fw_url = fw_url_entry.get().strip()
+                flash_method = flash_method_entry.get().strip()
+                fw_changelog = [c.strip() for c in fw_changelog_entry.get().split(",") if c.strip()]
+                baudrate = baudrate_entry.get().strip()
+                handshake = handshake_entry.get().strip()
+                command_set = [c.strip() for c in commandset_entry.get().split(",") if c.strip()]
+                info = {
+                    "type": "mouse",
+                    "name": name,
+                    "vid": vid,
+                    "pid": pid,
+                    "features": features,
+                    "serial_protocol": protocol,
+                    "firmware": {
+                        "version": fw_version,
+                        "url": fw_url,
+                        "flash_method": flash_method,
+                        "changelog": fw_changelog
+                    },
+                    "protocol_info": {
+                        "baudrate": int(baudrate) if baudrate.isdigit() else baudrate,
+                        "handshake": handshake,
+                        "command_set": command_set
+                    }
+                }
+                valid, msg = self.device_manager.validate_device_info(info)
+                if valid:
+                    self.device_manager.add_device(info)
+                    feedback_label.config(text=f"Added: {name} VID:{vid} PID:{pid}", fg="blue")
+                else:
+                    feedback_label.config(text=msg, fg="red")
+
+            def test_device():
+                vid = vid_entry.get().strip().upper()
+                pid = pid_entry.get().strip().upper()
+                if vid and pid:
+                    ok, msg = self.device_manager.test_device(vid, pid)
+                    feedback_label.config(text=msg, fg="green" if ok else "red")
+                else:
+                    feedback_label.config(text="Enter VID and PID to test.", fg="red")
+
+            fetch_btn = tk.Button(form_frame, text="Auto-fetch device data", command=auto_fetch)
+            fetch_btn.grid(row=12, column=0, columnspan=2, pady=5)
+            add_btn = tk.Button(form_frame, text="Add Device", command=add_device)
+            add_btn.grid(row=13, column=0, columnspan=2, pady=5)
+            test_btn = tk.Button(form_frame, text="Test device", command=test_device)
+            test_btn.grid(row=14, column=0, columnspan=2, pady=5)
+
+        device_manager_btn = ctk.CTkButton(self.root, text="Device Manager", command=open_device_manager)
+        device_manager_btn.grid(row=2, column=1, padx=5, pady=5, sticky="n")
 
         # Handlers
         self.serial_handler = SerialHandler(self.logger, self.update_mcu_status, self.root)
